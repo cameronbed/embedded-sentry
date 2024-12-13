@@ -142,8 +142,8 @@ void display_touch(uint16_t x, uint16_t y)
 {
     uint8_t text[30];
     sprintf((char *)text, "x=%d y=%d    ", x, y);
-    lcd.ClearStringLine(LINE(9));
-    lcd.DisplayStringAt(0, LINE(5), (uint8_t *)&text, CENTER_MODE);
+    lcd.ClearStringLine(9);
+    lcd.DisplayStringAtLine(9, (uint8_t *)&text);
 }
 
 void display_xyz(float x_dps, float y_dps, float z_dps, int16_t x_raw, int16_t y_raw, int16_t z_raw)
@@ -164,7 +164,7 @@ void display_xyz(float x_dps, float y_dps, float z_dps, int16_t x_raw, int16_t y
     sprintf(z_raw_text, "Z(raw): %d", z_raw);
 
     lcd.SetTextColor(LCD_COLOR_BLUE);
-    lcd.FillRect(0, 0, 180, 160);
+    lcd.FillRect(0, 0, 210, 150);
     thread_sleep_for(10);
     lcd.SetTextColor(LCD_COLOR_WHITE);
 
@@ -181,7 +181,7 @@ void draw_buttons()
 {
     // 1200x600
     // Draw Box for values
-    lcd.DrawRect(2, 2, 180, 160);
+    lcd.DrawRect(2, 2, 210, 150);
 
     // Draw Buttons
     lcd.DrawRect(10, 250, 100, 50);
