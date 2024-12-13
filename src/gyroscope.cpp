@@ -68,5 +68,7 @@ Gyroscope::GyroData Gyroscope::read_gyro()
     data.y_dps = (float)data.y_raw * SENSITIVITY;
     data.z_dps = (float)data.z_raw * SENSITIVITY;
 
+    printf("X(dps): %.5f, Y(dps): %.5f, Z(dps): %.5f\n", data.x_dps, data.y_dps, data.z_dps);
+
     return data;
 }
