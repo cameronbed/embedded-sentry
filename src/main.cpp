@@ -4,51 +4,51 @@
 
 #include "gyroscope.hpp"
 // --- LCD and Touchscreen Initialization ---
-LCD_DISCO_F429ZI lcd;
-TS_DISCO_F429ZI ts;
+LCD_DISCO_F429ZI lcd; //object to handle LCD display functionalities
+TS_DISCO_F429ZI ts; //object to handle touchscreen functionalities
 
 // ----- Arrays to store movement sequences -----
-constexpr int SAMPLES = 30;
+constexpr int SAMPLES = 30; //number of samples to collect for each gesture
 double reference_array[SAMPLES][3] = {0}; // Array to store a movement sequence for reference
 double recorded_array[SAMPLES][3] = {0};  // Array to store a recorded movement sequences
 
 // ----- Function Prototypes -----
-static void setup();
-static void setup_screen();
-static void display_xyz(float x_dps, float y_dps, float z_dps, int16_t x_raw, int16_t y_raw, int16_t z_raw);
-static void draw_screen();
-static void display_touch(uint16_t x, uint16_t y);
-pair<uint16_t, uint16_t> read_touchscreen(TS_StateTypeDef &TS_State);
-static void calibrate_gyro(Gyroscope &gyro);
-static void display_success_screen();
-static void display_wrong_gesture_screen();
-static double normalize(int16_t value);
-static double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES][3]);
-static void display_count(uint8_t count);
-static void clearButtons();
-static void update_status(const char *status);
+static void setup(); //sets up application environment
+static void setup_screen(); //initializes the screen
+static void display_xyz(float x_dps, float y_dps, float z_dps, int16_t x_raw, int16_t y_raw, int16_t z_raw); //displays gyroscope data on screen
+static void draw_screen(); //ui elements on the LCD
+static void display_touch(uint16_t x, uint16_t y); //displays touchscreen coordinates on the screen
+pair<uint16_t, uint16_t> read_touchscreen(TS_StateTypeDef &TS_State); //reads touchscreen input and returns coordinates
+static void calibrate_gyro(Gyroscope &gyro); //calibrates gyroscope
+static void display_success_screen(); //displays "success" if unlock attempt is successful
+static void display_wrong_gesture_screen(); //displays an error message if unlock attempt is unsuccessful
+static double normalize(int16_t value); //normalizes gyroscope data to [-1,1]
+static double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES][3]); //calculates the similarity between two gestures
+static void display_count(uint8_t count); //displays the current sample count during recording/unlocking
+static void clearButtons(); //resets the button on the screen
+static void update_status(const char *status); //updates status messages on the screen
 
 // ----- Global Variables -----
-bool is_recording = false;
-bool is_unlocking = false;
-uint8_t sampleCount = 0;
-bool alreadyRecorded = false;
-bool alreadyUnlocked = false;
-bool unlock_success = false;
-bool unlock_fail = false;
+bool is_recording = false; //boolean for if system is in recording mode
+bool is_unlocking = false; //boolean for if system is in unlocking mode
+uint8_t sampleCount = 0; // number of collected samples
+bool alreadyRecorded = false; //boolean for if recording is already made
+bool alreadyUnlocked = false; //tracks if unlock has been attempted
+bool unlock_success = false; //tracks if unlock attempt was successful
+bool unlock_fail = false; //tracks if unlock attempt was unsuccessful
 
 int main()
 {
-    Gyroscope gyro;
-    if (!gyro.init())
+    Gyroscope gyro; //gyroscope object
+    if (!gyro.init()) //initialize gyro
     {
         printf("Gyroscope initialization failed\n");
         return -1;
     }
     calibrate_gyro(gyro);
 
-    setup();
-    if (gyro.is_calibrated())
+    setup(); //initialize screen and interface
+    if (gyro.is_calibrated()) //check if gyro is calibrated
     {
         lcd.SetFont(&Font8);
         lcd.DisplayStringAtLine(40, (uint8_t *)"GYROSCOPE CALIBRATED");
@@ -56,11 +56,11 @@ int main()
         lcd.SetFont(&Font20);
     }
 
-    TS_StateTypeDef TS_State;
+    TS_StateTypeDef TS_State; //object to store touchscreen data
 
     while (1)
     {
-        Gyroscope::GyroData data = gyro.read_gyro();
+        Gyroscope::GyroData data = gyro.read_gyro(); //read gyro data
 
         // Print data to Teleplot
         // printf(">x_axis(raw): %d|g\n", data.x_raw);
@@ -79,16 +79,16 @@ int main()
         {
             if (sampleCount < SAMPLES)
             {
-                display_count(sampleCount);
+                display_count(sampleCount); //show sample count
 
-                recorded_array[sampleCount][0] = normalize(data.x_raw);
+                recorded_array[sampleCount][0] = normalize(data.x_raw); //show normalized data in the recorded array
                 recorded_array[sampleCount][1] = normalize(data.y_raw);
                 recorded_array[sampleCount][2] = normalize(data.z_raw);
                 sampleCount++;
             }
             else
             {
-                is_recording = false;
+                is_recording = false; //stop recording
                 sampleCount = 0;
 
                 // clear sample count
@@ -101,19 +101,19 @@ int main()
                 clearButtons();
             }
         }
-        if (is_unlocking)
+        if (is_unlocking) //handle unlocking mode
         {
             if (sampleCount < SAMPLES)
             {
-                display_count(sampleCount);
-                reference_array[sampleCount][0] = normalize(data.x_raw);
+                display_count(sampleCount); //show sample count
+                reference_array[sampleCount][0] = normalize(data.x_raw); //show normalized data in the recorded array
                 reference_array[sampleCount][1] = normalize(data.y_raw);
                 reference_array[sampleCount][2] = normalize(data.z_raw);
                 sampleCount++;
             }
             else
             {
-                is_unlocking = false;
+                is_unlocking = false; //stop unlocking
                 sampleCount = 0;
 
                 // clear sample count
@@ -122,7 +122,7 @@ int main()
                 // reset button color
                 clearButtons();
 
-                double similarity = calculate_similarity(recorded_array, reference_array);
+                double similarity = calculate_similarity(recorded_array, reference_array); //compare gestures and decide if unlock attempt is successful or not
                 printf("Similarity (Correlation): %.6f\n", similarity);
 
                 if (similarity > 0.8)
@@ -145,10 +145,10 @@ int main()
         pair<uint16_t, uint16_t> touch = read_touchscreen(TS_State);
         if (touch.first != 0 && touch.second != 0)
         {
-            display_touch(touch.first, touch.second);
+            display_touch(touch.first, touch.second); //show touchscreen coordinates
             if (touch.first > 130 && touch.first < 220 && touch.second > 10 && touch.second < 50)
             {
-                is_recording = true;
+                is_recording = true; //start recording
                 printf("Recording...\n");
                 // change button color
                 lcd.SetTextColor(LCD_COLOR_RED);
@@ -163,7 +163,7 @@ int main()
                 lcd.FillRect(12, 252, 98, 48);
             }
         }
-        thread_sleep_for(25);
+        thread_sleep_for(25); //delay
     }
 }
 
@@ -178,30 +178,30 @@ void setup_screen()
 {
     uint8_t status;
 
-    BSP_LCD_SetFont(&Font20);
+    BSP_LCD_SetFont(&Font20); //set font for display text
 
-    lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"TOUCHSCREEN DEMO", CENTER_MODE);
+    lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"TOUCHSCREEN DEMO", CENTER_MODE); //display initialization message
     thread_sleep_for(1);
 
-    status = ts.Init(lcd.GetXSize(), lcd.GetYSize());
+    status = ts.Init(lcd.GetXSize(), lcd.GetYSize()); //initialize touchscreen
 
-    if (status != TS_OK)
+    if (status != TS_OK) //check initialization status
     {
-        lcd.Clear(LCD_COLOR_RED);
+        lcd.Clear(LCD_COLOR_RED); //red for failure
         lcd.SetBackColor(LCD_COLOR_RED);
         lcd.SetTextColor(LCD_COLOR_WHITE);
         lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"TOUCHSCREEN INIT FAIL", CENTER_MODE);
     }
     else
     {
-        lcd.Clear(LCD_COLOR_GREEN);
+        lcd.Clear(LCD_COLOR_GREEN); //green for success
         lcd.SetBackColor(LCD_COLOR_GREEN);
         lcd.SetTextColor(LCD_COLOR_WHITE);
         lcd.DisplayStringAt(0, LINE(5), (uint8_t *)"TOUCHSCREEN INIT OK", CENTER_MODE);
     }
 
     thread_sleep_for(1);
-    lcd.Clear(LCD_COLOR_BLUE);
+    lcd.Clear(LCD_COLOR_BLUE); //default blue background
     lcd.SetBackColor(LCD_COLOR_BLUE);
     lcd.SetTextColor(LCD_COLOR_WHITE);
 }
@@ -210,8 +210,8 @@ pair<uint16_t, uint16_t> read_touchscreen(TS_StateTypeDef &TS_State)
 {
     uint16_t x = 0;
     uint16_t y = 0;
-    ts.GetState(&TS_State);
-    if (TS_State.TouchDetected)
+    ts.GetState(&TS_State); //read touchscreen state
+    if (TS_State.TouchDetected) //get touchscreen coordinates
     {
         x = TS_State.X;
         y = TS_State.Y;
@@ -240,7 +240,7 @@ void display_xyz(float x_dps, float y_dps, float z_dps, int16_t x_raw, int16_t y
     char x_raw_text[30];
     char y_raw_text[30];
     char z_raw_text[30];
-
+//format gyro data as strings
     sprintf(x_dps_text, "%.2f", x_dps);
     sprintf(y_dps_text, "%.2f", y_dps);
     sprintf(z_dps_text, "%.2f", z_dps);
