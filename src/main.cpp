@@ -344,6 +344,7 @@ double normalize(int16_t value)
     return static_cast<double>(value) / 32768.0; // Normalized to range [-1, 1]
 }
 
+//This function determines similarity between recorded and unlocking gesture
 double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES][3])
 {
     const double ENERGY_THRESHOLD = 10.0; // adjusted based on testing
@@ -358,8 +359,8 @@ double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES
     {
         for (int j = 0; j < 3; ++j)
         {
-            // calcualte energy
-            energy1 += fabs(gesture1[i][j]);
+            // calculating energy of both signals
+            energy1 += fabs(gesture1[i][j]); 
             energy2 += fabs(gesture2[i][j]);
             // calculate sum
             sum_gesture1[j] += gesture1[i][j];
@@ -370,7 +371,7 @@ double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES
         }
     }
 
-    mse /= (SAMPLES * 3);
+    mse /= (SAMPLES * 3); //This holds the total mean squared error; Smaller error means more similarity
 
     printf("Energy1: %.6f, Energy2: %.6f\n", energy1, energy2);
     printf("Sum gesture1: %.6f, %.6f, %.6f\n", sum_gesture1[0], sum_gesture1[1], sum_gesture1[2]);
@@ -382,20 +383,24 @@ double calculate_similarity(double gesture1[SAMPLES][3], double gesture2[SAMPLES
     // Sign Diff
     int sign_diff = 0;
     for (int k = 0; k < 3; ++k)
-    {
+    {   //This comparison ensures that sign is taken into account in determining similarity. 
         if ((sum_gesture1[k] >= 0) != (sum_gesture2[k] >= 0))
         {
-            sign_diff++;
+            sign_diff++; //increment if signs don't match. Reduces overall similarity
         }
     }
 
-    // weights
+    // weights given to each comparison mechanism in determining final similarity
+    // MSE is weighed as 'most important' as it tracks how close the 2 signals are
+    // Energy of the signal is considered in addition to MSE
+    // Sign is considered minimally to ensure that mirrored gestured don't register as the same. 
+    
     const double weight_mse = 0.6;
     const double weight_energy = 0.3;
-    const double weight_sign = 0.1;
+    const double weight_sign = 0.1; 
 
     // normalizd Metrics
-    double normalized_mse = 1.0 / (1.0 + mse);
+    double normalized_mse = 1.0 / (1.0 + mse); 
     double normalized_energy = 1.0 / (1.0 + energy_diff);
     double normalized_sign = (3 - sign_diff) / 3.0;
 
